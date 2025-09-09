@@ -9,6 +9,6 @@ This project is a fullstack application that takes MoMo SMS data in XML format, 
 # ## Scrum Board
 
 We are using a GitHub Project board to manage our tasks with Agile methodology.  
-You can view our Scrum board here: [DEVSQUAD Scrum Board](https://github.com/aimelive/momo-project/projects/1)
+You can view our Scrum board here: [DEVSQUAD Scrum Board](https://github.com/users/aimelive/projects/2)
 
 #
