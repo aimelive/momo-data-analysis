@@ -13,7 +13,7 @@ You can view our Scrum board here: [DEVSQUAD Scrum Board](https://github.com/use
 
 ## High-Level System Architecture
 
-Here is our system architecture diagram:
+Here is our system architecture diagram click on it and it takes you directly to its path file:
 
 ![System Architecture](web/assets/my%20arctechure.jpg)
 
