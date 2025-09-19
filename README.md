@@ -64,7 +64,10 @@ Scalability for future dashboard queries and analytics.
 
 ![ERD](web/assets/ERD.png)
 
-⚖ AI Assistance Disclosure
+## database documentation
+[Database Design Document](docs/Database%20Design%20Document%20(2).pdf)
+
+## AI Assistance Disclosure
 
 Language editing and formatting of this README were improved with the help of ChatGPT (OpenAI, 2025).
 All database tables, relationships, SQL scripts, and business rules were independently designed and implemented by the DEVSQUAD team without AI generation.
