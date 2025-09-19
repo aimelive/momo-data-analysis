@@ -1,1 +1,531 @@
+{
+  "documentation": {
+    "title": "MoMo SMS Data Processing System - JSON Schemas",
+    "description": "JSON data models representing database entities and their relationships",
+    "team": "Group 7 - Amazing Mkhonta, Tito Sibo, Kevine Uwisanga",
+    "created_date": "2024-01-18",
+    "version": "1.0",
+    "note": "These schemas took forever to get right - so many nested relationships!"
+  },
 
+  "schemas": {
+    "user_schema": {
+      "description": "Represents a user/customer in the MoMo system",
+      "properties": {
+        "user_id": {"type": "integer", "description": "Unique user identifier"},
+        "phone_number": {"type": "string", "pattern": "^256[0-9]{9}$", "description": "Ugandan phone number format"},
+        "full_name": {"type": "string", "maxLength": 100, "description": "User's full name"},
+        "id_number": {"type": "string", "maxLength": 20, "description": "National ID or passport"},
+        "email": {"type": "string", "format": "email", "description": "User's email address"},
+        "account_status": {"type": "string", "enum": ["ACTIVE", "SUSPENDED", "INACTIVE"]},
+        "kyc_status": {"type": "string", "enum": ["VERIFIED", "PENDING", "REJECTED"]},
+        "registration_date": {"type": "string", "format": "date-time"},
+        "last_active": {"type": "string", "format": "date-time"},
+        "provider_accounts": {
+          "type": "array",
+          "items": {"$ref": "#/schemas/user_provider_account_schema"}
+        }
+      },
+      "required": ["user_id", "phone_number", "full_name", "account_status", "kyc_status"]
+    },
+
+    "service_provider_schema": {
+      "description": "Mobile money service provider information",
+      "properties": {
+        "provider_id": {"type": "integer", "description": "Unique provider identifier"},
+        "provider_name": {"type": "string", "maxLength": 100, "description": "Provider name"},
+        "provider_code": {"type": "string", "maxLength": 10, "description": "Short provider code"},
+        "api_endpoint": {"type": "string", "format": "uri", "description": "API endpoint URL"},
+        "is_active": {"type": "boolean", "description": "Whether provider is active"},
+        "country_code": {"type": "string", "length": 2, "description": "ISO country code"},
+        "created_at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["provider_id", "provider_name", "provider_code", "is_active"]
+    },
+
+    "transaction_category_schema": {
+      "description": "Transaction category with fee structure",
+      "properties": {
+        "category_id": {"type": "integer", "description": "Unique category identifier"},
+        "category_name": {"type": "string", "maxLength": 50, "description": "Category display name"},
+        "category_code": {"type": "string", "maxLength": 10, "description": "Short category code"},
+        "description": {"type": "string", "description": "Detailed category description"},
+        "is_active": {"type": "boolean", "description": "Whether category is active"},
+        "fee_structure": {
+          "type": "object",
+          "properties": {
+            "fee_percentage": {"type": "number", "minimum": 0, "maximum": 1, "description": "Fee as decimal percentage"},
+            "minimum_fee": {"type": "number", "minimum": 0, "description": "Minimum fee amount"},
+            "maximum_fee": {"type": "number", "minimum": 0, "description": "Maximum fee amount"}
+          }
+        }
+      },
+      "required": ["category_id", "category_name", "category_code", "is_active"]
+    },
+
+    "user_provider_account_schema": {
+      "description": "Junction entity for user-provider many-to-many relationship",
+      "properties": {
+        "account_id": {"type": "integer", "description": "Unique account identifier"},
+        "user_id": {"type": "integer", "description": "Reference to user"},
+        "provider_id": {"type": "integer", "description": "Reference to provider"},
+        "account_number": {"type": "string", "maxLength": 20, "description": "Account number with provider"},
+        "account_balance": {"type": "number", "minimum": 0, "description": "Current balance"},
+        "account_limit": {"type": "number", "minimum": 0, "description": "Daily transaction limit"},
+        "is_primary": {"type": "boolean", "description": "Is this the primary account"},
+        "status": {"type": "string", "enum": ["ACTIVE", "SUSPENDED", "CLOSED"]},
+        "provider_info": {"$ref": "#/schemas/service_provider_schema"}
+      },
+      "required": ["account_id", "user_id", "provider_id", "account_number", "status"]
+    },
+
+    "transaction_schema": {
+      "description": "Main transaction entity with all related data",
+      "properties": {
+        "transaction_id": {"type": "integer", "description": "Unique transaction identifier"},
+        "transaction_reference": {"type": "string", "maxLength": 50, "description": "Unique reference from SMS"},
+        "amount": {"type": "number", "minimum": 0.01, "description": "Transaction amount"},
+        "currency": {"type": "string", "length": 3, "default": "UGX", "description": "Currency code"},
+        "transaction_fee": {"type": "number", "minimum": 0, "description": "Fee charged"},
+        "net_amount": {"type": "number", "description": "Amount after fees (calculated)"},
+        "transaction_status": {"type": "string", "enum": ["PENDING", "COMPLETED", "FAILED", "CANCELLED"]},
+        "transaction_type": {"type": "string", "enum": ["DEBIT", "CREDIT"]},
+        "description": {"type": "string", "description": "Transaction description"},
+        "balance_before": {"type": "number", "description": "Sender balance before transaction"},
+        "balance_after": {"type": "number", "description": "Sender balance after transaction"},
+        "transaction_date": {"type": "string", "format": "date-time"},
+        "sms_received_date": {"type": "string", "format": "date-time"},
+        "processed_date": {"type": "string", "format": "date-time"},
+        "sender": {"$ref": "#/schemas/user_schema"},
+        "receiver": {
+          "oneOf": [
+            {"$ref": "#/schemas/user_schema"},
+            {
+              "type": "object",
+              "properties": {
+                "phone_number": {"type": "string", "description": "Non-registered recipient phone"},
+                "type": {"type": "string", "const": "external"}
+              }
+            }
+          ]
+        },
+        "category": {"$ref": "#/schemas/transaction_category_schema"},
+        "provider": {"$ref": "#/schemas/service_provider_schema"}
+      },
+      "required": ["transaction_id", "transaction_reference", "amount", "transaction_status", "transaction_type", "transaction_date"]
+    },
+
+    "system_log_schema": {
+      "description": "System activity and error logs",
+      "properties": {
+        "log_id": {"type": "integer", "description": "Unique log identifier"},
+        "transaction_id": {"type": "integer", "description": "Related transaction ID (optional)"},
+        "log_level": {"type": "string", "enum": ["INFO", "WARNING", "ERROR", "DEBUG"]},
+        "log_category": {"type": "string", "maxLength": 50, "description": "Log category"},
+        "message": {"type": "string", "description": "Log message"},
+        "additional_data": {"type": "object", "description": "Additional structured data"},
+        "source_system": {"type": "string", "maxLength": 50, "description": "System component"},
+        "user_id": {"type": "integer", "description": "Related user ID (optional)"},
+        "ip_address": {"type": "string", "description": "IP address if applicable"},
+        "created_at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["log_id", "log_level", "log_category", "message", "created_at"]
+    }
+  },
+
+  "example_data": {
+    "simple_user_example": {
+      "user_id": 1,
+      "phone_number": "256781234567",
+      "full_name": "John Mukasa",
+      "id_number": "CM90123456789",
+      "email": "john.mukasa@email.com",
+      "account_status": "ACTIVE",
+      "kyc_status": "VERIFIED",
+      "registration_date": "2024-01-10T08:30:00Z",
+      "last_active": "2024-01-18T14:22:00Z"
+    },
+
+    "simple_transaction_example": {
+      "transaction_id": 1,
+      "transaction_reference": "MTN123456789001",
+      "amount": 50000.00,
+      "currency": "UGX",
+      "transaction_fee": 750.00,
+      "net_amount": 49250.00,
+      "transaction_status": "COMPLETED",
+      "transaction_type": "DEBIT",
+      "description": "Send money to Sarah Nakato",
+      "balance_before": 200000.00,
+      "balance_after": 149250.00,
+      "transaction_date": "2024-01-15T10:30:00Z",
+      "sms_received_date": "2024-01-15T10:30:00Z",
+      "processed_date": "2024-01-15T10:30:15Z"
+    },
+
+    "complete_transaction_with_relationships": {
+      "transaction_id": 1,
+      "transaction_reference": "MTN123456789001",
+      "amount": 50000.00,
+      "currency": "UGX",
+      "transaction_fee": 750.00,
+      "net_amount": 49250.00,
+      "transaction_status": "COMPLETED",
+      "transaction_type": "DEBIT",
+      "description": "Send money to Sarah Nakato",
+      "balance_before": 200000.00,
+      "balance_after": 149250.00,
+      "transaction_date": "2024-01-15T10:30:00Z",
+      "sms_received_date": "2024-01-15T10:30:00Z",
+      "processed_date": "2024-01-15T10:30:15Z",
+      "sender": {
+        "user_id": 1,
+        "phone_number": "256781234567",
+        "full_name": "John Mukasa",
+        "id_number": "CM90123456789",
+        "email": "john.mukasa@email.com",
+        "account_status": "ACTIVE",
+        "kyc_status": "VERIFIED",
+        "registration_date": "2024-01-10T08:30:00Z",
+        "last_active": "2024-01-18T14:22:00Z",
+        "provider_accounts": [
+          {
+            "account_id": 1,
+            "user_id": 1,
+            "provider_id": 1,
+            "account_number": "256781234567",
+            "account_balance": 149250.00,
+            "account_limit": 500000.00,
+            "is_primary": true,
+            "status": "ACTIVE",
+            "provider_info": {
+              "provider_id": 1,
+              "provider_name": "MTN Mobile Money",
+              "provider_code": "MTN",
+              "api_endpoint": "https://api.mtn.ug/momo",
+              "is_active": true,
+              "country_code": "UG",
+              "created_at": "2024-01-01T00:00:00Z"
+            }
+          },
+          {
+            "account_id": 2,
+            "user_id": 1,
+            "provider_id": 2,
+            "account_number": "256781234567",
+            "account_balance": 75000.00,
+            "account_limit": 200000.00,
+            "is_primary": false,
+            "status": "ACTIVE",
+            "provider_info": {
+              "provider_id": 2,
+              "provider_name": "Airtel Money",
+              "provider_code": "AIRTEL",
+              "api_endpoint": "https://api.airtel.ug/money",
+              "is_active": true,
+              "country_code": "UG",
+              "created_at": "2024-01-01T00:00:00Z"
+            }
+          }
+        ]
+      },
+      "receiver": {
+        "user_id": 2,
+        "phone_number": "256782345678",
+        "full_name": "Sarah Nakato",
+        "id_number": "CM91234567890",
+        "email": "sarah.nakato@email.com",
+        "account_status": "ACTIVE",
+        "kyc_status": "VERIFIED",
+        "registration_date": "2024-01-08T12:15:00Z",
+        "last_active": "2024-01-15T14:20:00Z"
+      },
+      "category": {
+        "category_id": 1,
+        "category_name": "Money Transfer",
+        "category_code": "TRANSFER",
+        "description": "Person to person money transfer",
+        "is_active": true,
+        "fee_structure": {
+          "fee_percentage": 0.015,
+          "minimum_fee": 100.00,
+          "maximum_fee": 15000.00
+        }
+      },
+      "provider": {
+        "provider_id": 1,
+        "provider_name": "MTN Mobile Money",
+        "provider_code": "MTN",
+        "api_endpoint": "https://api.mtn.ug/momo",
+        "is_active": true,
+        "country_code": "UG",
+        "created_at": "2024-01-01T00:00:00Z"
+      }
+    },
+
+    "external_recipient_transaction": {
+      "transaction_id": 3,
+      "transaction_reference": "MTN123456789002",
+      "amount": 15000.00,
+      "currency": "UGX",
+      "transaction_fee": 150.00,
+      "net_amount": 14850.00,
+      "transaction_status": "COMPLETED",
+      "transaction_type": "DEBIT",
+      "description": "Pay UMEME bill",
+      "balance_before": 149250.00,
+      "balance_after": 134100.00,
+      "transaction_date": "2024-01-16T09:15:00Z",
+      "sms_received_date": "2024-01-16T09:15:00Z",
+      "processed_date": "2024-01-16T09:15:08Z",
+      "sender": {
+        "user_id": 1,
+        "phone_number": "256781234567",
+        "full_name": "John Mukasa",
+        "account_status": "ACTIVE",
+        "kyc_status": "VERIFIED"
+      },
+      "receiver": {
+        "phone_number": "256787777777",
+        "type": "external"
+      },
+      "category": {
+        "category_id": 2,
+        "category_name": "Bill Payment",
+        "category_code": "BILL_PAY",
+        "description": "Utility and service bill payments",
+        "is_active": true,
+        "fee_structure": {
+          "fee_percentage": 0.01,
+          "minimum_fee": 50.00,
+          "maximum_fee": 5000.00
+        }
+      },
+      "provider": {
+        "provider_id": 1,
+        "provider_name": "MTN Mobile Money",
+        "provider_code": "MTN"
+      }
+    },
+
+    "system_log_example": {
+      "log_id": 1,
+      "transaction_id": 1,
+      "log_level": "INFO",
+      "log_category": "SMS_PROCESSING",
+      "message": "Successfully processed MTN transaction SMS",
+      "additional_data": {
+        "sms_length": 160,
+        "processing_time_ms": 245,
+        "parser_version": "2.1.0",
+        "validation_rules_passed": ["amount_format", "phone_format", "reference_format"]
+      },
+      "source_system": "SMS_PROCESSOR",
+      "user_id": 1,
+      "ip_address": null,
+      "created_at": "2024-01-15T10:30:15Z"
+    },
+
+    "error_log_example": {
+      "log_id": 6,
+      "transaction_id": 6,
+      "log_level": "ERROR",
+      "log_category": "TRANSACTION_PROCESSING",
+      "message": "Bank deposit transaction pending verification",
+      "additional_data": {
+        "bank_code": "STB",
+        "verification_required": true,
+        "estimated_verification_time": "2-4 hours",
+        "retry_policy": "exponential_backoff"
+      },
+      "source_system": "BANK_PROCESSOR",
+      "user_id": 4,
+      "ip_address": "192.168.1.100",
+      "created_at": "2024-01-17T11:30:00Z"
+    },
+
+    "user_with_multiple_providers": {
+      "user_id": 2,
+      "phone_number": "256782345678",
+      "full_name": "Sarah Nakato",
+      "id_number": "CM91234567890",
+      "email": "sarah.nakato@email.com",
+      "account_status": "ACTIVE",
+      "kyc_status": "VERIFIED",
+      "registration_date": "2024-01-08T12:15:00Z",
+      "last_active": "2024-01-18T06:00:20Z",
+      "provider_accounts": [
+        {
+          "account_id": 3,
+          "user_id": 2,
+          "provider_id": 1,
+          "account_number": "256782345678",
+          "account_balance": 566825.00,
+          "account_limit": 1000000.00,
+          "is_primary": true,
+          "status": "ACTIVE",
+          "provider_info": {
+            "provider_id": 1,
+            "provider_name": "MTN Mobile Money",
+            "provider_code": "MTN",
+            "is_active": true
+          }
+        },
+        {
+          "account_id": 4,
+          "user_id": 2,
+          "provider_id": 4,
+          "account_number": "STB001234567",
+          "account_balance": 50000.00,
+          "account_limit": 300000.00,
+          "is_primary": false,
+          "status": "ACTIVE",
+          "provider_info": {
+            "provider_id": 4,
+            "provider_name": "Stanbic Bank Mobile",
+            "provider_code": "STANBIC",
+            "is_active": true
+          }
+        }
+      ]
+    }
+  },
+
+  "api_response_examples": {
+    "transaction_list_response": {
+      "status": "success",
+      "message": "Transactions retrieved successfully",
+      "data": {
+        "transactions": [
+          {
+            "transaction_id": 1,
+            "transaction_reference": "MTN123456789001",
+            "amount": 50000.00,
+            "currency": "UGX",
+            "transaction_fee": 750.00,
+            "transaction_status": "COMPLETED",
+            "transaction_type": "DEBIT",
+            "description": "Send money to Sarah Nakato",
+            "transaction_date": "2024-01-15T10:30:00Z",
+            "sender_name": "John Mukasa",
+            "receiver_name": "Sarah Nakato",
+            "category_name": "Money Transfer",
+            "provider_name": "MTN Mobile Money"
+          }
+        ],
+        "pagination": {
+          "current_page": 1,
+          "per_page": 10,
+          "total_records": 45,
+          "total_pages": 5
+        }
+      },
+      "timestamp": "2024-01-18T14:30:00Z"
+    },
+
+    "user_summary_response": {
+      "status": "success",
+      "message": "User summary retrieved successfully",
+      "data": {
+        "user": {
+          "user_id": 1,
+          "full_name": "John Mukasa",
+          "phone_number": "256781234567",
+          "account_status": "ACTIVE",
+          "kyc_status": "VERIFIED"
+        },
+        "summary": {
+          "total_transactions": 3,
+          "total_sent": 115000.00,
+          "total_received": 25000.00,
+          "total_fees_paid": 1275.00,
+          "current_balance": 134100.00,
+          "last_transaction_date": "2024-01-16T09:15:00Z"
+        },
+        "categories": [
+          {
+            "category_name": "Money Transfer",
+            "transaction_count": 2,
+            "total_sent": 75000.00,
+            "total_received": 25000.00,
+            "total_fees": 1125.00
+          },
+          {
+            "category_name": "Bill Payment",
+            "transaction_count": 1,
+            "total_sent": 15000.00,
+            "total_received": 0.00,
+            "total_fees": 150.00
+          }
+        ]
+      },
+      "timestamp": "2024-01-18T14:30:00Z"
+    }
+  },
+
+  "sql_to_json_mapping": {
+    "description": "Documentation of how SQL table data maps to JSON representations",
+    "mappings": {
+      "users_table": {
+        "direct_fields": [
+          "user_id", "phone_number", "full_name", "id_number", "email",
+          "account_status", "kyc_status", "registration_date", "last_active"
+        ],
+        "excluded_fields": ["created_at", "updated_at"],
+        "related_entities": {
+          "provider_accounts": {
+            "source": "user_provider_accounts JOIN service_providers",
+            "relationship": "one-to-many",
+            "key_field": "user_id"
+          }
+        }
+      },
+      "transactions_table": {
+        "direct_fields": [
+          "transaction_id", "transaction_reference", "amount", "currency",
+          "transaction_fee", "net_amount", "transaction_status", "transaction_type",
+          "description", "balance_before", "balance_after", "transaction_date",
+          "sms_received_date", "processed_date"
+        ],
+        "excluded_fields": ["created_at", "updated_at"],
+        "foreign_key_expansions": {
+          "sender_id": {
+            "expands_to": "sender",
+            "target_table": "users",
+            "fields_included": ["user_id", "full_name", "phone_number", "account_status"]
+          },
+          "receiver_id": {
+            "expands_to": "receiver",
+            "target_table": "users",
+            "fields_included": ["user_id", "full_name", "phone_number"],
+            "nullable": true,
+            "fallback_field": "receiver_phone"
+          },
+          "category_id": {
+            "expands_to": "category",
+            "target_table": "transaction_categories",
+            "fields_included": ["category_id", "category_name", "category_code", "description"]
+          },
+          "provider_id": {
+            "expands_to": "provider",
+            "target_table": "service_providers",
+            "fields_included": ["provider_id", "provider_name", "provider_code"]
+          }
+        }
+      },
+      "system_logs_table": {
+        "direct_fields": [
+          "log_id", "transaction_id", "log_level", "log_category",
+          "message", "additional_data", "source_system", "user_id",
+          "ip_address", "created_at"
+        ],
+        "special_handling": {
+          "additional_data": {
+            "type": "JSON",
+            "description": "Already in JSON format, parse before including in response"
+          }
+        }
+      }
+    }
+  }
+}
