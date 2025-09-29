@@ -149,6 +149,9 @@ This prints timing results for **linear search** vs **dictionary lookup**, demon
 ###  Documentation
 
 * Full API documentation is in [`docs/api_docs.md`](docs/api_docs.md)
+* API Report
+[Building and Securing a REST API for MoMo SMS Data (PDF)](docs/Building%20and%20Securing%20a%20REST%20API%20for%20MoMo%20SMS%20Data.pdf)
+
 * Screenshots of all the test runs are in [`screenshots/`](screenshots/)
 * For each screenshot the last command to be run is the one being reperesented because some screenshots have other commands that are run but not necessary or relevant to what i want to show in that particular screenshot
 
