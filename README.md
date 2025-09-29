@@ -1,9 +1,3 @@
-Here’s your **fully updated `README.md`** with **all previous content preserved** and the **new REST API setup instructions** seamlessly added near the end.
-You can copy-paste this as a complete replacement for your current README.
-
----
-
-```markdown
 ## Team Name: DEVSQUAD
 
 ## Project Description
