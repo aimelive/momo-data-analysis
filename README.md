@@ -65,7 +65,6 @@ This structure ensures:
 ## Database Documentation
 [Database Design Document](docs/Database%20Design%20Document%20(2).pdf)
 
----
 
 ##  REST API Setup & Usage
 
@@ -145,7 +144,7 @@ python dsa/dsa_compare.py data/transactions.json
 
 This prints timing results for **linear search** vs **dictionary lookup**, demonstrating that dictionary lookup is significantly faster.
 
----
+
 
 ###  Documentation
 
@@ -153,7 +152,6 @@ This prints timing results for **linear search** vs **dictionary lookup**, demon
 * Screenshots of all the test runs are in [`screenshots/`](screenshots/)
 * For each screenshot the last command to be run is the one being reperesented because some screenshots have other commands that are run but not necessary or relevant to what i want to show in that particular screenshot
 
----
 
 ## AI Assistance Disclosure
 
